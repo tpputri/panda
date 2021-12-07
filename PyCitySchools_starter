@@ -1,0 +1,286 @@
+Observable trends based on the data
+Largest age group of the game is 20-24 (258 players), and it is also the group with greatest amount in item purchases ($1,114.06). However, age group 35-39 are the "biggest spenders," with the per-player spending of \$4.76, compared to $4.32 per-player spending of the 20-24 age group.
+Largest gender group of the game is "Male" (484 players), and it is also the group with greatest amount in item purchases ($1,967.64). However, other/non-disclosed are the "biggest spenders," with the per-player spending of \$4.56, compared to $4.07 per-player spending of males.
+The most popular item is "Oathbreaker, Last Hope of the Breaking Storm," with 12 purchases, and it is also the most profitable item ($50.76). But it is a small portion (approximately 1.5\%) of the game's total number of purchases, which is 780.
+# Dependencies and Setup
+import pandas as pd
+import numpy as np
+
+import warnings
+warnings.filterwarnings('ignore')
+
+# File to Load (Remember to Change These)
+file_to_load = "Resources/purchase_data.csv"
+
+# Read Purchasing File and store into Pandas data frame
+purchase_data = pd.read_csv(file_to_load)
+
+# See what the data looks like
+purchase_data.head()
+Purchase ID	SN	Age	Gender	Item ID	Item Name	Price
+0	0	Lisim78	20	Male	108	Extraction, Quickblade Of Trembling Hands	3.53
+1	1	Lisovynya38	40	Male	143	Frenzied Scimitar	1.56
+2	2	Ithergue48	24	Male	92	Final Critic	4.88
+3	3	Chamassasya86	24	Male	100	Blindscythe	3.27
+4	4	Iskosia90	23	Male	131	Fury	1.44
+Player Count
+Display the total number of players
+#Create a data frame for unique players info (minus purchases)
+df_players = pd.DataFrame(purchase_data[["SN", "Age", "Gender"]])
+df_unique_players = df_players.drop_duplicates(subset = "SN", keep = 'first')
+
+#total number of unique players
+total_players = len(purchase_data['SN'].unique())
+
+#show results
+df_totalplayers = pd.DataFrame({"Total Players" : [total_players]})
+df_totalplayers
+Total Players
+0	576
+Purchasing Analysis (Total)
+Run basic calculations to obtain number of unique items, average price, etc.
+Create a summary data frame to hold the results
+Optional: give the displayed data cleaner formatting
+Display the summary data frame
+#calculations
+unique_items = len(purchase_data['Item ID'].unique())
+average_price = purchase_data['Price'].mean()
+number_of_purchases = len(purchase_data['Purchase ID'].unique())
+total_revenue = purchase_data['Price'].sum()
+
+#creating summary data frame
+summary_dict = {"Number of Unique Items" : [unique_items],
+                "Average Price" : [average_price],
+                "Number of Purchases" : [number_of_purchases],
+                "Total Revenue" : [total_revenue]}
+df_summary = pd.DataFrame(summary_dict)
+
+#cleaner formatting
+df_summary["Average Price"] = df_summary["Average Price"].map('${:.2f}'.format)
+df_summary["Total Revenue"] = df_summary["Total Revenue"].map('${:,.2f}'.format)
+
+#show DataFrame
+df_summary
+Number of Unique Items	Average Price	Number of Purchases	Total Revenue
+0	183	$3.05	780	$2,379.77
+Gender Demographics
+Percentage and Count of Male Players
+Percentage and Count of Female Players
+Percentage and Count of Other / Non-Disclosed
+#calculate gender demographics
+count_bygender = df_unique_players["Gender"].value_counts()
+df_gender_summary = count_bygender.rename_axis("Gender").to_frame('Total Count')
+df_gender_summary ["Percentage of Players"] = (df_gender_summary["Total Count"] / total_players).map('{:.2%}'.format)
+#show DataFrame
+df_gender_summary
+Total Count	Percentage of Players
+Gender		
+Male	484	84.03%
+Female	81	14.06%
+Other / Non-Disclosed	11	1.91%
+Purchasing Analysis (Gender)
+Run basic calculations to obtain purchase count, avg. purchase price, avg. purchase total per person etc. by gender
+Create a summary data frame to hold the results
+Optional: give the displayed data cleaner formatting
+Display the summary data frame
+#calculate gender purchasing analysis; perform groupby operations
+groupby_gender = purchase_data.groupby(['Gender'])
+purchase_count_bygender = groupby_gender["Price"].count()
+average_purchase_bygender = groupby_gender["Price"].mean()
+total_value_bygender = groupby_gender["Price"].sum()
+
+# creating a new DataFrame
+df_gender_purchasing = pd.DataFrame({"Purchase Count": purchase_count_bygender,
+                                           "Average Purchase Price": average_purchase_bygender,
+                                           "Total Purchase Value": total_value_bygender})
+
+#Transforming DataFrame
+df_gender_purchasing = pd.merge (df_gender_purchasing, df_gender_summary, on = "Gender")
+df_gender_purchasing ["Avg Total Purchase per Person"] = df_gender_purchasing ["Total Purchase Value"] / df_gender_purchasing ["Total Count"]
+df_gender_purchasing = df_gender_purchasing [["Purchase Count", "Average Purchase Price", "Total Purchase Value", "Avg Total Purchase per Person"]]
+
+#cleaner formatting
+df_gender_purchasing["Average Purchase Price"] = df_gender_purchasing["Average Purchase Price"].map('${:,.2f}'.format)
+df_gender_purchasing["Total Purchase Value"] = df_gender_purchasing["Total Purchase Value"].map('${:,.2f}'.format)
+df_gender_purchasing["Avg Total Purchase per Person"] = df_gender_purchasing["Avg Total Purchase per Person"].map('${:,.2f}'.format)
+
+#show DataFrame
+df_gender_purchasing
+Purchase Count	Average Purchase Price	Total Purchase Value	Avg Total Purchase per Person
+Gender				
+Female	113	$3.20	$361.94	$4.47
+Male	652	$3.02	$1,967.64	$4.07
+Other / Non-Disclosed	15	$3.35	$50.19	$4.56
+Age Demographics
+Establish bins for ages
+Categorize the existing players using the age bins. Hint: use pd.cut()
+Calculate the numbers and percentages by age group
+Create a summary data frame to hold the results
+Optional: round the percentage column to two decimal points
+Display Age Demographics Table
+# Create bins and names
+bins_age = [0, 9, 14, 19, 24, 29, 34, 39, np.inf]
+age_bin_names = ["<10", "10-14", "15-19", "20-24", "25-29", "30-34", "35-39", "40+"]
+
+#slice data into bins for unique_players DataFrame
+slice_age_unique = pd.cut(df_unique_players["Age"], bins_age, labels=age_bin_names)
+
+#create new data frame with bins
+df_age_unique = df_unique_players
+df_age_unique["Age Group"] = slice_age_unique
+
+#count each group
+age_vcount_unique = df_age_unique["Age Group"].value_counts()
+
+#create new data frame
+df_age_summary = age_vcount_unique.rename_axis("Age Group").to_frame('Total Count')
+df_age_summary ["Percentage of Players"] = (df_age_summary["Total Count"] / total_players).map('{:.2%}'.format)
+
+#sort values
+df_age_summary = df_age_summary.sort_values("Age Group")
+
+#show DataFrame
+df_age_summary
+Total Count	Percentage of Players
+Age Group		
+<10	17	2.95%
+10-14	22	3.82%
+15-19	107	18.58%
+20-24	258	44.79%
+25-29	77	13.37%
+30-34	52	9.03%
+35-39	31	5.38%
+40+	12	2.08%
+Purchasing Analysis (Age)
+Bin the purchase_data data frame by age
+Run basic calculations to obtain purchase count, avg. purchase price, avg. purchase total per person etc. in the table below
+Create a summary data frame to hold the results
+Optional: give the displayed data cleaner formatting
+Display the summary data frame
+# slice data into bins for purchase_data DataFrame
+slice_age_purchase = pd.cut(purchase_data["Age"], bins_age, labels=age_bin_names)
+
+# #create new data frame with bins
+df_age_purchase = purchase_data
+df_age_purchase["Age Group"] = slice_age_purchase
+
+#calculate age group purchasing analysis; perform groupby operations
+groupby_age = df_age_purchase.groupby(['Age Group'])
+purchase_count_byagegroup = groupby_age["Price"].count()
+average_purchase_byagegroup = groupby_age["Price"].mean()
+total_value_byagegroup = groupby_age["Price"].sum()
+
+# Creating a new DataFrame
+df_age_purchasing = pd.DataFrame({"Purchase Count": purchase_count_byagegroup,
+                                  "Average Purchase Price": average_purchase_byagegroup,
+                                  "Total Purchase Value": total_value_byagegroup})
+
+#Transforming DataFrame
+df_age_purchasing = pd.merge (df_age_purchasing, df_age_summary, on = "Age Group")
+df_age_purchasing ["Avg Total Purchase per Person"] = df_age_purchasing ["Total Purchase Value"] / df_age_purchasing ["Total Count"]
+df_age_purchasing = df_age_purchasing [["Purchase Count", "Average Purchase Price", "Total Purchase Value", "Avg Total Purchase per Person"]]
+
+#cleaner formatting
+df_age_purchasing["Average Purchase Price"] = df_age_purchasing["Average Purchase Price"].map('${:,.2f}'.format)
+df_age_purchasing["Total Purchase Value"] = df_age_purchasing["Total Purchase Value"].map('${:,.2f}'.format)
+df_age_purchasing["Avg Total Purchase per Person"] = df_age_purchasing["Avg Total Purchase per Person"].map('${:,.2f}'.format)
+
+#show DataFrame
+df_age_purchasing
+Purchase Count	Average Purchase Price	Total Purchase Value	Avg Total Purchase per Person
+Age Group				
+<10	23	$3.35	$77.13	$4.54
+10-14	28	$2.96	$82.78	$3.76
+15-19	136	$3.04	$412.89	$3.86
+20-24	365	$3.05	$1,114.06	$4.32
+25-29	101	$2.90	$293.00	$3.81
+30-34	73	$2.93	$214.00	$4.12
+35-39	41	$3.60	$147.67	$4.76
+40+	13	$2.94	$38.24	$3.19
+Top Spenders
+Run basic calculations to obtain the results in the table below
+Create a summary data frame to hold the results
+Sort the total purchase value column in descending order
+Optional: give the displayed data cleaner formatting
+Display a preview of the summary data frame
+#calculate user purchasing analysis; perform groupby operations
+groupby_sn = purchase_data.groupby(['SN'])
+purchase_count_bysn = groupby_sn["Price"].count()
+average_purchase_bysn = groupby_sn["Price"].mean()
+total_value_bysn = groupby_sn["Price"].sum()
+
+# Creating a new DataFrame
+df_sn_purchasing = pd.DataFrame({"Purchase Count": purchase_count_bysn,
+                                           "Average Purchase Price": average_purchase_bysn,
+                                           "Total Purchase Value": total_value_bysn})
+
+#sort descending by purchase value
+df_top_spender = df_sn_purchasing.sort_values("Total Purchase Value", ascending = False)
+
+#cleaner formatting
+df_top_spender["Average Purchase Price"] = df_top_spender["Average Purchase Price"].map('${:,.2f}'.format)
+df_top_spender["Total Purchase Value"] = df_top_spender["Total Purchase Value"].map('${:,.2f}'.format)
+
+#show DataFrame
+df_top_spender.head()
+Purchase Count	Average Purchase Price	Total Purchase Value
+SN			
+Lisosia93	5	$3.79	$18.96
+Idastidru52	4	$3.86	$15.45
+Chamjask73	3	$4.61	$13.83
+Iral74	4	$3.40	$13.62
+Iskadarya95	3	$4.37	$13.10
+Most Popular Items
+Retrieve the Item ID, Item Name, and Item Price columns
+Group by Item ID and Item Name. Perform calculations to obtain purchase count, item price, and total purchase value
+Create a summary data frame to hold the results
+Sort the purchase count column in descending order
+Optional: give the displayed data cleaner formatting
+Display a preview of the summary data frame
+#calculate item analysis; perform groupby operations
+groupby_item = purchase_data.groupby(['Item ID', 'Item Name'])
+purchase_count_byitem = groupby_item["Price"].count()
+price_of_item = groupby_item["Price"].mean()
+total_value_byitem = groupby_item["Price"].sum()
+
+# Creating a new DataFrame
+df_item_purchasing = pd.DataFrame({"Purchase Count": purchase_count_byitem,
+                                   "Item Price": price_of_item,
+                                           "Total Purchase Value": total_value_byitem})
+
+# sort descending by purchase count
+df_popular_item = df_item_purchasing.sort_values("Purchase Count", ascending = False)
+
+#cleaner formatting
+df_popular_item["Item Price"] = df_popular_item["Item Price"].map('${:,.2f}'.format)
+df_popular_item["Total Purchase Value"] = df_popular_item["Total Purchase Value"].map('${:,.2f}'.format)
+
+#show DataFrame
+df_popular_item.head()
+Purchase Count	Item Price	Total Purchase Value
+Item ID	Item Name			
+178	Oathbreaker, Last Hope of the Breaking Storm	12	$4.23	$50.76
+145	Fiery Glass Crusader	9	$4.58	$41.22
+108	Extraction, Quickblade Of Trembling Hands	9	$3.53	$31.77
+82	Nirvana	9	$4.90	$44.10
+19	Pursuit, Cudgel of Necromancy	8	$1.02	$8.16
+Most Profitable Items
+Sort the above table by total purchase value in descending order
+Optional: give the displayed data cleaner formatting
+Display a preview of the data frame
+# sort descending by purchase value
+df_profitable_item = df_item_purchasing.sort_values("Total Purchase Value", ascending = False)
+
+#cleaner formatting
+df_profitable_item["Item Price"] = df_profitable_item["Item Price"].map('${:,.2f}'.format)
+df_profitable_item["Total Purchase Value"] = df_profitable_item["Total Purchase Value"].map('${:,.2f}'.format)
+
+#show DataFrame
+df_profitable_item.head()
+Purchase Count	Item Price	Total Purchase Value
+Item ID	Item Name			
+178	Oathbreaker, Last Hope of the Breaking Storm	12	$4.23	$50.76
+82	Nirvana	9	$4.90	$44.10
+145	Fiery Glass Crusader	9	$4.58	$41.22
+92	Final Critic	8	$4.88	$39.04
+103	Singed Scalpel	8	$4.35	$34.80
